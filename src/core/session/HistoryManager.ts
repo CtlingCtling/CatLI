@@ -45,21 +45,27 @@ export class HistoryManager {
   }
 
   removeLastRound(): boolean {
-    if (this.messages.length < 2) {
+    return this.removeLastNRounds(1);
+  }
+
+  removeLastNRounds(n: number): boolean {
+    if (this.messages.length < 2 || n < 1) {
       return false;
     }
 
-    let lastUserIndex = -1;
-    for (let i = this.messages.length - 1; i >= 0; i--) {
-      if (this.messages[i].role === "user") {
-        lastUserIndex = i;
-        break;
+    for (let round = 0; round < n; round++) {
+      let lastUserIndex = -1;
+      for (let i = this.messages.length - 1; i >= 0; i--) {
+        if (this.messages[i].role === "user") {
+          lastUserIndex = i;
+          break;
+        }
       }
+
+      if (lastUserIndex === -1) break;
+      this.messages = this.messages.slice(0, lastUserIndex);
     }
 
-    if (lastUserIndex === -1) return false;
-
-    this.messages = this.messages.slice(0, lastUserIndex);
     this.persist();
     return true;
   }

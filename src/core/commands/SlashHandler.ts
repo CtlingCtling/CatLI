@@ -53,12 +53,14 @@ export function createHelpCommand(toolRegistry: ToolRegistry): Command {
   return {
     name: "help",
     description: "Show available commands and tools",
-    execute: async (_args: string[]): Promise<boolean> => {
+    execute: async (): Promise<boolean> => {
       output("Available commands:");
       output("  /help - Show this help message");
       output("  /clear - Clear the conversation history");
-      output("  /exit - Exit the CLI");
+      output("  /reverse <n> - Remove the last n rounds of conversation");
+      output("  /config - View and modify configuration");
       output("  /tools - List available tools");
+      output("  /exit - Exit the CLI");
 
       const tools = toolRegistry.list();
       if (tools.length > 0) {
@@ -100,7 +102,7 @@ export function createToolsCommand(toolRegistry: ToolRegistry): Command {
   return {
     name: "tools",
     description: "List available tools",
-    execute: async (_args: string[]): Promise<boolean> => {
+    execute: async (): Promise<boolean> => {
       const tools = toolRegistry.list();
       if (tools.length === 0) {
         output("No tools available.");
@@ -109,13 +111,7 @@ export function createToolsCommand(toolRegistry: ToolRegistry): Command {
 
       output("Available tools:");
       for (const tool of tools) {
-        output(`\n${tool.name}:`);
-        output(`  Description: ${tool.description}`);
-        output(`  Parameters:`);
-        for (const param of tool.parameters) {
-          const required = param.required ? "(required)" : "(optional)";
-          output(`    - ${param.name} ${required}: ${param.description}`);
-        }
+        output(`  - ${tool.name}: ${tool.description}`);
       }
 
       return true;

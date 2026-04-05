@@ -12,7 +12,9 @@
     "test": "vitest",
     "test:run": "vitest run"
   },
-  "dependencies": {},
+  "dependencies": {
+    "openai": "^6.33.0"
+  },
   "devDependencies": {
     "@types/node": "^20.11.0",
     "tsx": "^4.7.0",

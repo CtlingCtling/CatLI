@@ -28,7 +28,7 @@ sessionManager.createSession();
 
 const toolRegistry = createToolRegistry();
 const toolExecutor = new ToolExecutor(toolRegistry);
-const commandRegistry = createCommandRegistry(toolRegistry);
+const commandRegistry = createCommandRegistry(toolRegistry, sessionManager, configManager);
 const slashHandler = new SlashHandler(commandRegistry);
 
 async function handleUserInput(input: string): Promise<void> {

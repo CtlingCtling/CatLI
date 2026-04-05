@@ -57,6 +57,7 @@ export class ConfigManager {
 
   set<K extends keyof Config>(key: K, value: Config[K]): void {
     this.config[key] = value;
+    this.save();
   }
 
   getApiKey(): string {

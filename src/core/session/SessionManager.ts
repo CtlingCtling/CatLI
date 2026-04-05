@@ -96,8 +96,8 @@ export class SessionManager {
     }
   }
 
-  reverse(): boolean {
-    const success = this.historyManager.removeLastRound();
+  reverse(n: number = 1): boolean {
+    const success = this.historyManager.removeLastNRounds(n);
     if (success && this.currentSession) {
       this.currentSession.messages = this.historyManager.getHistory();
       this.currentSession.metadata.messageCount = this.currentSession.messages.length;
