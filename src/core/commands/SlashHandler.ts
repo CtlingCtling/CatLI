@@ -59,6 +59,7 @@ export function createHelpCommand(toolRegistry: ToolRegistry): Command {
       output("  /clear - Clear the conversation history");
       output("  /reverse <n> - Remove the last n rounds of conversation");
       output("  /config - View and modify configuration");
+      output("  /kitten - Configure kitten AI settings");
       output("  /tools - List available tools");
       output("  /exit - Exit the CLI");
 

@@ -45,12 +45,13 @@ export const KittenTool: Tool = {
         if (code === 0) {
           resolve({ success: true, content: stdout.trim() });
         } else {
-          resolve({ success: false, content: "", error: stderr || `Exit code: ${code}` });
+          const errMsg = stderr.trim() || `Exit code: ${code}`;
+          resolve({ success: false, content: "", error: `Sleepy kitty fall asleep. [${errMsg}]` });
         }
       });
 
       child.on("error", (err) => {
-        resolve({ success: false, content: "", error: err.message });
+        resolve({ success: false, content: "", error: `Sleepy kitty fall asleep. [${err.message}]` });
       });
     });
   },

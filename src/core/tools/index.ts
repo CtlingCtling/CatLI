@@ -4,7 +4,7 @@ import { WriteFileTool } from "./builtin/WriteFile.js";
 import { ReplaceTextTool } from "./builtin/ReplaceText.js";
 import { RunBashTool } from "./builtin/RunBash.js";
 import { QuestionTool } from "./builtin/Question.js";
-import { CreateTodoTool, ListTodosTool, CompleteTodoTool } from "./builtin/CreateTodo.js";
+import { CreateTodoTool, ListTodosTool, CompleteTodoTool, RemoveTodoTool } from "./builtin/CreateTodo.js";
 import { KittenTool } from "./builtin/Kitten.js";
 import { Tool } from "../../types/tool.js";
 
@@ -20,6 +20,7 @@ export function createToolRegistry(): ToolRegistry {
     CreateTodoTool,
     ListTodosTool,
     CompleteTodoTool,
+    RemoveTodoTool,
     KittenTool,
   ];
 

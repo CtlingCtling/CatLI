@@ -1,6 +1,6 @@
 import { Command } from "../CommandRegistry.js";
 import { ConfigManager } from "../../../config/ConfigManager.js";
-import { output, error } from "../../../utils/logger.js";
+import { output } from "../../../utils/logger.js";
 import * as readline from "readline";
 
 export function createConfigCommand(configManager: ConfigManager): Command {
@@ -17,6 +17,7 @@ export function createConfigCommand(configManager: ConfigManager): Command {
       output(`  compressionThreshold: ${config.compressionThreshold}`);
       output(`  historyPath: ${config.historyPath}`);
       output("");
+      output("Enter key=value to set, key to view, e to exit.");
 
       const rl = readline.createInterface({
         input: process.stdin,
@@ -31,49 +32,46 @@ export function createConfigCommand(configManager: ConfigManager): Command {
         });
       };
 
-      let running = true;
-      while (running) {
-        const input = await ask();
+      try {
+        while (true) {
+          const input = await ask();
 
-        if (!input) {
-          output("Exiting config mode.");
-          running = false;
-          break;
-        }
-
-        if (input === "exit" || input === "quit") {
-          output("Exiting config mode.");
-          running = false;
-          break;
-        }
-
-        if (!input.includes("=")) {
-          if (input === "model") {
-            output(`  model: ${config.model}`);
-          } else if (input === "maxTokens") {
-            output(`  maxTokens: ${config.maxTokens}`);
-          } else if (input === "temperature") {
-            output(`  temperature: ${config.temperature}`);
-          } else if (input === "compressionThreshold") {
-            output(`  compressionThreshold: ${config.compressionThreshold}`);
-          } else if (input === "historyPath") {
-            output(`  historyPath: ${config.historyPath}`);
-          } else {
-            output("Unknown config key. Use <key>=<value> to set or just <key> to view.");
+          if (input === "e" || input === "exit") {
+            output("Exiting config mode.");
+            break;
           }
-          continue;
-        }
 
-        const [key, ...valueParts] = input.split("=");
-        const value = valueParts.join("=").trim();
-        const keyTrimmed = key.trim();
+          if (!input) {
+            output("Exiting config mode.");
+            break;
+          }
 
-        if (!value) {
-          output("Usage: <key>=<value> or just <key> to view");
-          continue;
-        }
+          if (!input.includes("=")) {
+            if (input === "model") {
+              output(`  model: ${config.model}`);
+            } else if (input === "maxTokens") {
+              output(`  maxTokens: ${config.maxTokens}`);
+            } else if (input === "temperature") {
+              output(`  temperature: ${config.temperature}`);
+            } else if (input === "compressionThreshold") {
+              output(`  compressionThreshold: ${config.compressionThreshold}`);
+            } else if (input === "historyPath") {
+              output(`  historyPath: ${config.historyPath}`);
+            } else {
+              output(`Unknown config key: ${input}`);
+            }
+            continue;
+          }
 
-        try {
+          const [key, ...valueParts] = input.split("=");
+          const value = valueParts.join("=").trim();
+          const keyTrimmed = key.trim();
+
+          if (!value) {
+            output("Usage: <key>=<value>");
+            continue;
+          }
+
           if (keyTrimmed === "model") {
             configManager.set("model", value);
             output(`Updated: model = ${value}`);
@@ -107,13 +105,11 @@ export function createConfigCommand(configManager: ConfigManager): Command {
           } else {
             output(`Unknown config key: ${keyTrimmed}`);
           }
-        } catch (err) {
-          const e = err as Error;
-          error(`Failed to update config: ${e.message}`);
         }
+      } finally {
+        rl.close();
       }
 
-      rl.close();
       return true;
     },
   };

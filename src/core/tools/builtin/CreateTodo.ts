@@ -1,18 +1,83 @@
 import { Tool, ToolResult } from "../../../types/tool.js";
+import { readFileSync, writeFileSync, existsSync } from "fs";
+import { homedir } from "os";
+import { join } from "path";
 
-interface Todo {
-  id: string;
-  title: string;
-  description?: string;
-  completed: boolean;
-  createdAt: number;
+interface TodoStore {
+  [title: string]: boolean;
 }
 
-const todos: Todo[] = [];
+class TodoManager {
+  private static instance: TodoManager;
+  private filePath: string;
+  private todos: TodoStore = {};
+
+  constructor() {
+    this.filePath = join(homedir(), ".catli", "todos.json");
+    this.load();
+  }
+
+  static getInstance(): TodoManager {
+    if (!TodoManager.instance) {
+      TodoManager.instance = new TodoManager();
+    }
+    return TodoManager.instance;
+  }
+
+  private load(): void {
+    try {
+      if (existsSync(this.filePath)) {
+        const data = readFileSync(this.filePath, "utf-8");
+        this.todos = JSON.parse(data);
+      }
+    } catch {
+      this.todos = {};
+    }
+  }
+
+  private save(): void {
+    const dir = this.filePath.substring(0, this.filePath.lastIndexOf("/"));
+    if (!existsSync(dir)) {
+      require("fs").mkdirSync(dir, { recursive: true });
+    }
+    writeFileSync(this.filePath, JSON.stringify(this.todos, null, 2));
+  }
+
+  create(title: string): boolean {
+    if (title in this.todos) {
+      return false;
+    }
+    this.todos[title] = false;
+    this.save();
+    return true;
+  }
+
+  complete(title: string): boolean {
+    if (!(title in this.todos)) {
+      return false;
+    }
+    this.todos[title] = true;
+    this.save();
+    return true;
+  }
+
+  list(): TodoStore {
+    return { ...this.todos };
+  }
+
+  remove(title: string): boolean {
+    if (!(title in this.todos)) {
+      return false;
+    }
+    delete this.todos[title];
+    this.save();
+    return true;
+  }
+}
 
 export const CreateTodoTool: Tool = {
   name: "create_todo",
-  description: "Create a TODO item for tracking tasks",
+  description: "Create a TODO item",
   parameters: [
     {
       name: "title",
@@ -20,36 +85,57 @@ export const CreateTodoTool: Tool = {
       type: "string",
       required: true,
     },
-    {
-      name: "description",
-      description: "Optional description of the TODO",
-      type: "string",
-      required: false,
-    },
   ],
   execute: async (params: Record<string, unknown>): Promise<ToolResult> => {
     try {
       const title = params.title as string;
-      const description = params.description as string | undefined;
 
       if (!title) {
         return { success: false, content: "", error: "title is required" };
       }
 
-      const todo: Todo = {
-        id: `todo-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-        title,
-        description,
-        completed: false,
-        createdAt: Date.now(),
-      };
+      const manager = TodoManager.getInstance();
+      const success = manager.create(title);
 
-      todos.push(todo);
+      if (!success) {
+        return { success: false, content: "", error: `TODO already exists: ${title}` };
+      }
 
-      return {
-        success: true,
-        content: `Created TODO: ${title}\nID: ${todo.id}\n${description ? `Description: ${description}` : ""}`,
-      };
+      return { success: true, content: `Created TODO: ${title}` };
+    } catch (err) {
+      const error = err as Error;
+      return { success: false, content: "", error: error.message };
+    }
+  },
+};
+
+export const CompleteTodoTool: Tool = {
+  name: "complete_todo",
+  description: "Mark a TODO as completed",
+  parameters: [
+    {
+      name: "title",
+      description: "The title of the TODO to mark as completed",
+      type: "string",
+      required: true,
+    },
+  ],
+  execute: async (params: Record<string, unknown>): Promise<ToolResult> => {
+    try {
+      const title = params.title as string;
+
+      if (!title) {
+        return { success: false, content: "", error: "title is required" };
+      }
+
+      const manager = TodoManager.getInstance();
+      const success = manager.complete(title);
+
+      if (!success) {
+        return { success: false, content: "", error: `TODO not found: ${title}` };
+      }
+
+      return { success: true, content: `Completed TODO: ${title}` };
     } catch (err) {
       const error = err as Error;
       return { success: false, content: "", error: error.message };
@@ -63,26 +149,21 @@ export const ListTodosTool: Tool = {
   parameters: [],
   execute: async (): Promise<ToolResult> => {
     try {
-      if (todos.length === 0) {
+      const manager = TodoManager.getInstance();
+      const todos = manager.list();
+      const keys = Object.keys(todos);
+
+      if (keys.length === 0) {
         return { success: true, content: "No TODOs" };
       }
 
-      const active = todos.filter((t) => !t.completed);
-      const completed = todos.filter((t) => t.completed);
-
-      let content = `Active TODOs (${active.length}):\n`;
-      for (const todo of active) {
-        content += `  - [ ] ${todo.title} ${todo.description ? `— ${todo.description}` : ""}\n`;
+      let content = "";
+      for (const [title, completed] of Object.entries(todos)) {
+        const marker = completed ? "[x]" : "[ ]";
+        content += `${marker} ${title}\n`;
       }
 
-      if (completed.length > 0) {
-        content += `\nCompleted (${completed.length}):\n`;
-        for (const todo of completed) {
-          content += `  - [x] ${todo.title}\n`;
-        }
-      }
-
-      return { success: true, content };
+      return { success: true, content: content.trim() };
     } catch (err) {
       const error = err as Error;
       return { success: false, content: "", error: error.message };
@@ -90,37 +171,36 @@ export const ListTodosTool: Tool = {
   },
 };
 
-export const CompleteTodoTool: Tool = {
-  name: "complete_todo",
-  description: "Mark a TODO as completed",
+export const RemoveTodoTool: Tool = {
+  name: "remove_todo",
+  description: "Remove a TODO item",
   parameters: [
     {
-      name: "id",
-      description: "The ID of the TODO to mark as completed",
+      name: "title",
+      description: "The title of the TODO to remove",
       type: "string",
       required: true,
     },
   ],
   execute: async (params: Record<string, unknown>): Promise<ToolResult> => {
     try {
-      const id = params.id as string;
+      const title = params.title as string;
 
-      if (!id) {
-        return { success: false, content: "", error: "id is required" };
+      if (!title) {
+        return { success: false, content: "", error: "title is required" };
       }
 
-      const todo = todos.find((t) => t.id === id);
-      if (!todo) {
-        return { success: false, content: "", error: `TODO not found: ${id}` };
+      const manager = TodoManager.getInstance();
+      const success = manager.remove(title);
+
+      if (!success) {
+        return { success: false, content: "", error: `TODO not found: ${title}` };
       }
 
-      todo.completed = true;
-      return { success: true, content: `Completed TODO: ${todo.title}` };
+      return { success: true, content: `Removed TODO: ${title}` };
     } catch (err) {
       const error = err as Error;
       return { success: false, content: "", error: error.message };
     }
   },
 };
-
-export { todos };

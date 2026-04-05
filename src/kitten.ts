@@ -1,38 +1,6 @@
 import OpenAI from "openai";
-import { readFileSync, existsSync } from "fs";
-import { homedir } from "os";
-import { join } from "path";
-
-interface KittenConfig {
-  baseURL?: string;
-  apiKey?: string;
-  model?: string;
-}
-
-function loadConfig(): KittenConfig {
-  const configPath = join(homedir(), ".catli.json");
-  try {
-    if (existsSync(configPath)) {
-      const data = readFileSync(configPath, "utf-8");
-      const config = JSON.parse(data);
-      return {
-        baseURL: config.kittenBaseURL,
-        apiKey: config.kittenApiKey || config.apiKey,
-        model: config.kittenModel,
-      };
-    }
-  } catch {}
-  return {};
-}
-
-function getConfig(): KittenConfig {
-  const config = loadConfig();
-  return {
-    baseURL: process.env.KITTEN_BASE_URL || config.baseURL || "https://api.deepseek.com",
-    apiKey: process.env.KITTEN_API_KEY || config.apiKey || "",
-    model: process.env.KITTEN_MODEL || config.model || "deepseek-chat",
-  };
-}
+import { readFileSync } from "fs";
+import { KittenConfigManager } from "./core/kitten/KittenConfig.js";
 
 async function main() {
   const args = process.argv.slice(2);
@@ -46,26 +14,31 @@ async function main() {
   let input = "";
 
   if (!process.stdin.isTTY) {
-    input = readFileSync("/dev/stdin", "utf-8").trim();
+    try {
+      input = readFileSync("/dev/stdin", "utf-8").trim();
+    } catch {
+    }
   }
 
   const fullPrompt = input ? `${prompt}\n\nInput:\n${input}` : prompt;
 
-  const config = getConfig();
+  const manager = KittenConfigManager.getInstance();
+  const config = manager.getConfig();
+  const apiKey = manager.getApiKey();
 
-  if (!config.apiKey) {
-    console.error("Error: No API key found. Set KITTEN_API_KEY or configure in ~/.catli.json");
+  if (!apiKey) {
+    console.error("Sleepy kitty fall asleep. [No API key found]");
     process.exit(1);
   }
 
   const client = new OpenAI({
-    baseURL: config.baseURL,
-    apiKey: config.apiKey,
+    baseURL: config.baseUrl,
+    apiKey: apiKey,
   });
 
   try {
     const response = await client.chat.completions.create({
-      model: config.model || "deepseek-chat",
+      model: config.model,
       messages: [{ role: "user", content: fullPrompt }],
       temperature: 0.7,
     });
@@ -74,7 +47,7 @@ async function main() {
     console.log(content);
   } catch (err) {
     const error = err as Error;
-    console.error(`Error: ${error.message}`);
+    console.error(`Sleepy kitty fall asleep. [${error.message}]`);
     process.exit(1);
   }
 }
