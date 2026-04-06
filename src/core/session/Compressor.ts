@@ -2,10 +2,11 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import { Message, MessageRole } from "../../types/message.js";
 import { DeepSeekClient } from "../api/DeepSeekClient.js";
+import { countMessagesTokens } from "../../utils/tokenCounter.js";
 
 export interface CompressionOptions {
-  chunkSize: number;
-  preserveRecentCount: number;
+  tokenThreshold: number;
+  preserveRecentTokens: number;
   maxTokensPerChunk: number;
 }
 
@@ -16,34 +17,59 @@ export class Compressor {
   constructor(client?: DeepSeekClient, options?: Partial<CompressionOptions>) {
     this.client = client;
     this.options = {
-      chunkSize: options?.chunkSize || 10,
-      preserveRecentCount: options?.preserveRecentCount || 6,
-      maxTokensPerChunk: options?.maxTokensPerChunk || 2000,
+      tokenThreshold: options?.tokenThreshold || 6000,
+      preserveRecentTokens: options?.preserveRecentTokens || 2000,
+      maxTokensPerChunk: options?.maxTokensPerChunk || 1500,
     };
   }
 
   async compress(messages: Message[]): Promise<Message[]> {
-    if (messages.length <= this.options.chunkSize) {
-      return messages;
-    }
-
     const systemMessages = messages.filter((m) => m.role === MessageRole.System);
     const nonSystemMessages = messages.filter((m) => m.role !== MessageRole.System);
 
-    if (nonSystemMessages.length <= this.options.preserveRecentCount) {
+    if (nonSystemMessages.length === 0) {
       return messages;
     }
 
-    const recentMessages = nonSystemMessages.slice(-this.options.preserveRecentCount);
-    const olderMessages = nonSystemMessages.slice(0, -this.options.preserveRecentCount);
+    const totalTokens = countMessagesTokens(nonSystemMessages);
+
+    if (totalTokens <= this.options.tokenThreshold) {
+      return messages;
+    }
+
+    const recentMessages = this.preserveRecentMessages(nonSystemMessages);
+    const olderMessages = nonSystemMessages.slice(0, -recentMessages.length);
+
+    if (olderMessages.length === 0) {
+      return [...systemMessages, ...recentMessages];
+    }
 
     const compressedOlder = await this.compressChunks(olderMessages);
 
     return [...systemMessages, ...compressedOlder, ...recentMessages];
   }
 
+  private preserveRecentMessages(messages: Message[]): Message[] {
+    const result: Message[] = [];
+    let tokenCount = 0;
+
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const msg = messages[i];
+      const msgTokens = countMessagesTokens([msg]);
+
+      if (tokenCount + msgTokens > this.options.preserveRecentTokens && result.length > 0) {
+        break;
+      }
+
+      result.unshift(msg);
+      tokenCount += msgTokens;
+    }
+
+    return result;
+  }
+
   private async compressChunks(messages: Message[]): Promise<Message[]> {
-    const chunks = this.chunkMessages(messages, this.options.chunkSize);
+    const chunks = this.createTokenChunks(messages);
     const compressed: Message[] = [];
 
     for (const chunk of chunks) {
@@ -54,11 +80,28 @@ export class Compressor {
     return compressed;
   }
 
-  private chunkMessages(messages: Message[], size: number): Message[][] {
+  private createTokenChunks(messages: Message[]): Message[][] {
     const chunks: Message[][] = [];
-    for (let i = 0; i < messages.length; i += size) {
-      chunks.push(messages.slice(i, i + size));
+    let currentChunk: Message[] = [];
+    let currentTokens = 0;
+
+    for (const msg of messages) {
+      const msgTokens = countMessagesTokens([msg]);
+
+      if (currentTokens + msgTokens > this.options.maxTokensPerChunk && currentChunk.length > 0) {
+        chunks.push(currentChunk);
+        currentChunk = [];
+        currentTokens = 0;
+      }
+
+      currentChunk.push(msg);
+      currentTokens += msgTokens;
     }
+
+    if (currentChunk.length > 0) {
+      chunks.push(currentChunk);
+    }
+
     return chunks;
   }
 
@@ -104,28 +147,22 @@ export class Compressor {
   private formatMessagesForSummary(messages: Message[]): string {
     return messages
       .map((m) => {
-        const role = m.role === MessageRole.User ? "User" : m.role === MessageRole.Assistant ? "Assistant" : m.role;
+        const role = m.role === MessageRole.System ? "System" : m.role === MessageRole.User ? "User" : "Assistant";
         return `${role}: ${m.content}`;
       })
-      .join("\n\n");
+      .join("\n");
   }
 
   private getSummaryPrompt(conversation: string): string {
+    const templatePath = join(process.cwd(), "builtin_prompts", "message_summary.md");
+    let template = "";
+
     try {
-      const promptPath = join(process.cwd(), "builtin_prompts", "message_summary.md");
-      return readFileSync(promptPath, "utf-8").replace("{{conversation}}", conversation);
+      template = readFileSync(templatePath, "utf-8");
     } catch {
-      return `Summarize the following conversation concisely, preserving key facts, decisions, and important details:\n\n${conversation}`;
+      template = "Please summarize the following conversation concisely:\n\n{{conversation}}\n\nSummary:";
     }
-  }
 
-  estimateTokens(text: string): number {
-    return Math.ceil(text.length / 4);
-  }
-
-  truncate(text: string, maxTokens: number): string {
-    const maxChars = maxTokens * 4;
-    if (text.length <= maxChars) return text;
-    return text.slice(0, maxChars - 3) + "...";
+    return template.replace("{{conversation}}", conversation);
   }
 }
