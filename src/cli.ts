@@ -32,9 +32,16 @@ const commandRegistry = createCommandRegistry(toolRegistry, sessionManager, conf
 const slashHandler = new SlashHandler(commandRegistry);
 
 let innerMode = false;
+let mainRl: any = null;
 
 export function setInnerMode(value: boolean): void {
   innerMode = value;
+  if (value && mainRl) {
+    process.stdin.pause();
+  } else if (!value && mainRl) {
+    process.stdin.resume();
+    mainRl.prompt();
+  }
 }
 
 async function handleUserInput(input: string): Promise<void> {
@@ -148,24 +155,24 @@ async function main(): Promise<void> {
   output("Type /help for available commands\n");
 
   const readline = await import("readline");
-  const rl = readline.createInterface({
+  mainRl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
     prompt: "catli> ",
   });
 
-  rl.prompt();
+  mainRl.prompt();
 
-  rl.on("line", async (line) => {
+  mainRl.on("line", async (line: string) => {
     if (innerMode) {
-      rl.prompt();
+      mainRl.prompt();
       return;
     }
     await handleUserInput(line);
-    rl.prompt();
+    mainRl.prompt();
   });
 
-  rl.on("close", () => {
+  mainRl.on("close", () => {
     output("Goodbye!");
     process.exit(0);
   });
