@@ -87,9 +87,10 @@ export class SessionManager {
     return this.compressor.compress(this.currentSession.messages);
   }
 
-  async compress(): Promise<Message[]> {
-    if (!this.currentSession) return [];
-    return this.compressor.compress(this.currentSession.messages);
+  async compress(): Promise<void> {
+    if (!this.currentSession) return;
+    const compressed = await this.compressor.compress(this.currentSession.messages);
+    this.currentSession.messages = compressed;
   }
 
   setStatus(status: SessionStatus): void {

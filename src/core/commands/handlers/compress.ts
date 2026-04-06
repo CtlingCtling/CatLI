@@ -1,26 +1,28 @@
 import { Command } from "../CommandRegistry.js";
 import { SessionManager } from "../../session/SessionManager.js";
 import { output } from "../../../utils/logger.js";
+import { countMessagesTokens } from "../../../utils/tokenCounter.js";
 
 export function createCompressCommand(sessionManager: SessionManager): Command {
   return {
     name: "compress",
     description: "Manually compress conversation history",
     execute: async (_args: string[]): Promise<boolean> => {
-      const messages = sessionManager.getCurrentSession()?.messages;
-      if (!messages || messages.length === 0) {
+      const session = sessionManager.getCurrentSession();
+      if (!session || session.messages.length === 0) {
         output("No conversation to compress.");
         return true;
       }
 
-      const originalCount = messages.length;
-      const compressedMessages = await sessionManager.compress();
+      const beforeCount = session.messages.length;
+      const beforeTokens = countMessagesTokens(session.messages);
 
-      if (compressedMessages.length < originalCount) {
-        output(`Compressed ${originalCount} messages into ${compressedMessages.length} message(s).`);
-      } else {
-        output("No compression needed - conversation is within threshold.");
-      }
+      await sessionManager.compress();
+
+      const afterCount = session.messages.length;
+      const afterTokens = countMessagesTokens(session.messages);
+
+      output(`Compressed: ${beforeCount} → ${afterCount} messages, ~${beforeTokens} → ~${afterTokens} tokens`);
       return true;
     },
   };
