@@ -1,10 +1,7 @@
 import { CommandRegistry } from "./CommandRegistry.js";
-import {
-  SlashHandler,
-  createHelpCommand,
-  createExitCommand,
-  createToolsCommand,
-} from "./SlashHandler.js";
+import { createHelpCommand } from "./handlers/help.js";
+import { createToolsCommand } from "./handlers/tools.js";
+import { createExitCommand } from "./handlers/exit.js";
 import { createReverseCommand, createClearCommand } from "./handlers/reverse.js";
 import { createConfigCommand } from "./handlers/config.js";
 import { createKittenCommand } from "./handlers/kitten.js";
@@ -30,4 +27,5 @@ export function createCommandRegistry(
   return registry;
 }
 
-export { CommandRegistry, SlashHandler };
+export { CommandRegistry } from "./CommandRegistry.js";
+export { SlashHandler } from "./SlashHandler.js";
