@@ -3,6 +3,7 @@ Available commands:
   /clear - Clear the conversation history
   /reverse <n> - Remove the last n rounds of conversation
   /compress - Manually compress conversation history
+  /token - Show current token count
   /config - View and modify configuration
   /kitten - Configure kitten AI settings
   /tools - List available tools
