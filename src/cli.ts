@@ -222,15 +222,16 @@ async function handleUserInput(input: string): Promise<void> {
     .build();
 
   sessionManager.addMessage(userMessage);
+    output("");
 
-  try {
+    try {
     const messages = await sessionManager.getMessages();
     const tools = toolRegistry.list();
 
     if (tools.length > 0) {
-      const result = await apiClient.generateWithTools(messages, tools);
+      let result = await apiClient.generateWithTools(messages, tools);
 
-      if (result.toolCalls.length > 0) {
+      while (result.toolCalls.length > 0) {
         const assistantWithTools = new MessageBuilder()
           .setRole(MessageRole.Assistant)
           .setContent(result.content)
@@ -264,24 +265,17 @@ async function handleUserInput(input: string): Promise<void> {
 
         const currentSession = sessionManager.getCurrentSession();
         const updatedMessages = currentSession?.messages || [];
-        const followUp = await apiClient.generateContent(updatedMessages);
-
-        const assistantMessage = new MessageBuilder()
-          .setRole(MessageRole.Assistant)
-          .setContent(followUp)
-          .build();
-
-        sessionManager.addMessage(assistantMessage);
-        output(followUp);
-      } else {
-        const assistantMessage = new MessageBuilder()
-          .setRole(MessageRole.Assistant)
-          .setContent(result.content)
-          .build();
-
-        sessionManager.addMessage(assistantMessage);
-        output(result.content);
+        result = await apiClient.generateWithTools(updatedMessages, tools);
       }
+
+      const assistantMessage = new MessageBuilder()
+        .setRole(MessageRole.Assistant)
+        .setContent(result.content)
+        .build();
+
+      sessionManager.addMessage(assistantMessage);
+      output(result.content);
+      output("");
     } else {
       let fullResponse = "";
       for await (const chunk of apiClient.generateContentStream(messages)) {
@@ -296,6 +290,7 @@ async function handleUserInput(input: string): Promise<void> {
           .build();
 
         sessionManager.addMessage(assistantMessage);
+        output("");
       }
     }
   } catch (err) {

@@ -1,7 +1,8 @@
-import { readFileSync, readdirSync, writeFileSync } from "fs";
+import { readFileSync, readdirSync, writeFileSync, mkdirSync, existsSync } from "fs";
 import { join, basename, extname } from "path";
 import { output } from "../../utils/logger.js";
 import { YamlGenerator, YamlMetadata } from "./YamlGenerator.js";
+import { Classifier, Category } from "./Classifier.js";
 
 export interface ProcessOptions {
   inputDir: string;
@@ -18,6 +19,7 @@ export interface ProcessedFile {
   metadata?: YamlMetadata;
   summary?: string;
   error?: string;
+  category?: Category;
 }
 
 export class MDProcessor {
@@ -27,6 +29,8 @@ export class MDProcessor {
       const filename = basename(filePath);
       const existingYaml = YamlGenerator.parse(content);
 
+      const classification = Classifier.classify(content, filename);
+
       let processedContent = content;
       if (!existingYaml) {
         const metadata: YamlMetadata = {
@@ -34,9 +38,12 @@ export class MDProcessor {
           date: new Date().toISOString().split("T")[0],
           source: "",
           summary: "",
-          tags: [],
+          tags: [classification.category],
         };
         processedContent = YamlGenerator.addYamlToContent(content, metadata);
+      } else {
+        const updatedYaml = { ...existingYaml, tags: [...(existingYaml.tags || []), classification.category] };
+        processedContent = YamlGenerator.addYamlToContent(content, updatedYaml);
       }
 
       return {
@@ -44,6 +51,7 @@ export class MDProcessor {
         filename,
         content: processedContent,
         metadata: existingYaml || this.extractBasicMetadata(content, filename),
+        category: classification.category,
       };
     } catch (err) {
       const error = err as Error;
@@ -58,6 +66,7 @@ export class MDProcessor {
 
   static processDirectory(options: ProcessOptions): ProcessedFile[] {
     const results: ProcessedFile[] = [];
+    const categoryFolders: Map<Category, string> = new Map();
 
     try {
       const files = this.findMarkdownFiles(options.inputDir, options.recursive || false);
@@ -71,12 +80,30 @@ export class MDProcessor {
         if (result.error) {
           output(`[error] ${result.filename}: ${result.error}`);
         } else {
-          output(`Processed: ${result.filename}`);
+          output(`Processed: ${result.filename} -> ${result.category}`);
+
+          if (options.outputDir && result.category) {
+            const outputDir = options.outputDir;
+            const categoryFolder = Classifier.getCategoryFolder(result.category);
+            const targetDir = join(outputDir, categoryFolder);
+
+            if (!categoryFolders.has(result.category)) {
+              if (!existsSync(targetDir)) {
+                mkdirSync(targetDir, { recursive: true });
+                output(`Created folder: ${categoryFolder}`);
+              }
+              categoryFolders.set(result.category, targetDir);
+            }
+
+            const targetPath = join(targetDir, result.filename);
+            writeFileSync(targetPath, result.content, "utf-8");
+          }
         }
       }
 
       if (options.outputDir && results.length > 0) {
-        this.saveResults(results, options.outputDir);
+        const savedCount = results.filter((r) => !r.error && r.category).length;
+        output(`\nSaved ${savedCount} file(s) to category folders in ${options.outputDir}`);
       }
     } catch (err) {
       const error = err as Error;
@@ -120,15 +147,5 @@ export class MDProcessor {
       summary: "",
       tags: [],
     };
-  }
-
-  private static saveResults(results: ProcessedFile[], outputDir: string): void {
-    for (const result of results) {
-      if (!result.error) {
-        const outputPath = join(outputDir, result.filename);
-        writeFileSync(outputPath, result.content, "utf-8");
-        output(`Saved: ${outputPath}`);
-      }
-    }
   }
 }

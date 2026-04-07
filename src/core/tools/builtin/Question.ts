@@ -1,9 +1,15 @@
 import { Tool, ToolResult } from "../../../types/tool.js";
 import { output } from "../../../utils/logger.js";
+import { askQuestion, QuestionOption } from "../../../utils/questionHandler.js";
+
+export interface QuestionParams {
+  question: string;
+  options?: Array<{ label: string; value: string }>;
+}
 
 export const QuestionTool: Tool = {
   name: "question",
-  description: "Ask a question to the user and wait for their response",
+  description: "Ask a question to the user with selectable options",
   parameters: [
     {
       name: "question",
@@ -11,19 +17,43 @@ export const QuestionTool: Tool = {
       type: "string",
       required: true,
     },
+    {
+      name: "options",
+      description: "Array of options to present to the user",
+      type: "array",
+      required: false,
+    },
   ],
   execute: async (params: Record<string, unknown>): Promise<ToolResult> => {
     try {
-      const question = params.question as string;
+      const question = (params.question as string) || "";
+      const options = (params.options as Array<{ label: string; value: string }>) || [];
+
       if (!question) {
         return { success: false, content: "", error: "question is required" };
       }
 
-      output(`[Question] ${question}`);
+      if (options.length === 0) {
+        output(`[Question] ${question}`);
+        output("(No options provided, waiting for user input...)");
+        return {
+          success: true,
+          content: "Question asked. User will respond in the next input.",
+        };
+      }
+
+      const questionOptions: QuestionOption[] = options.map((opt) => ({
+        label: opt.label,
+        value: opt.value,
+      }));
+
+      const result = await askQuestion(question, questionOptions);
 
       return {
         success: true,
-        content: "Question asked. User will respond in the next input.",
+        content: result.isCustom
+          ? `User selected custom input: ${result.selected}`
+          : `User selected: ${result.selected}`,
       };
     } catch (err) {
       const error = err as Error;

@@ -1,7 +1,7 @@
 export interface ToolParameter {
   name: string;
   description: string;
-  type: "string" | "number" | "boolean" | "object";
+  type: "string" | "number" | "boolean" | "object" | "array";
   required: boolean;
   default?: unknown;
 }
