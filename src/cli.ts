@@ -6,6 +6,8 @@ import { createCommandRegistry, SlashHandler } from "./core/commands/index.js";
 import { MessageBuilder, MessageRole } from "./types/message.js";
 import { output, error } from "./utils/logger.js";
 
+const DEBUG = process.argv.includes("--debug") || process.argv.includes("-d");
+
 const CONFIG_PATH = process.env.CATLI_CONFIG_PATH;
 const configManager = new ConfigManager(CONFIG_PATH);
 const config = configManager.getConfig();
@@ -231,6 +233,13 @@ async function handleUserInput(input: string): Promise<void> {
     if (tools.length > 0) {
       let result = await apiClient.generateWithTools(messages, tools);
 
+      if (DEBUG) {
+        output("[DEBUG] Initial generateWithTools result:");
+        output(JSON.stringify(result, null, 2));
+        output("[DEBUG] Messages before tool loop:");
+        output(JSON.stringify(messages, null, 2));
+      }
+
       while (result.toolCalls.length > 0) {
         const assistantWithTools = new MessageBuilder()
           .setRole(MessageRole.Assistant)
@@ -263,9 +272,22 @@ async function handleUserInput(input: string): Promise<void> {
           sessionManager.addMessage(toolMessage);
         }
 
+        if (DEBUG) {
+          const currentSession = sessionManager.getCurrentSession();
+          output("[DEBUG] Tool results:");
+          output(JSON.stringify(results, null, 2));
+          output("[DEBUG] Messages after tool execution:");
+          output(JSON.stringify(currentSession?.messages, null, 2));
+        }
+
         const currentSession = sessionManager.getCurrentSession();
         const updatedMessages = currentSession?.messages || [];
         result = await apiClient.generateWithTools(updatedMessages, tools);
+
+        if (DEBUG) {
+          output("[DEBUG] Next generateWithTools result:");
+          output(JSON.stringify(result, null, 2));
+        }
       }
 
       const assistantMessage = new MessageBuilder()
