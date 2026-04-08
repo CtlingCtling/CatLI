@@ -27,11 +27,17 @@ export async function askQuestion(
   let selectedIndex = 0;
   isActive = true;
 
+  const clearScreen = (): void => {
+    process.stdout.write("\x1b[2J");
+    process.stdout.write("\x1b[H");
+  };
+
   const cleanup = (): void => {
     if (process.stdin.isTTY) {
       (process.stdin as any).setRawMode?.(false);
     }
     isActive = false;
+    clearScreen();
     process.stdout.write("\n");
   };
 
@@ -40,27 +46,20 @@ export async function askQuestion(
       (process.stdin as any).setRawMode?.(true);
     }
 
-    const clearLines = (count: number): void => {
-      for (let i = 0; i < count; i++) {
-        process.stdout.write("\x1b[2K\r");
-        if (i < count - 1) {
-          process.stdout.write("\x1b[1A");
-        }
-      }
-    };
-
     const render = (): void => {
-      let display = `${question}\n\n`;
+      let display = `${question}\n`;
       for (let i = 0; i < allOptions.length; i++) {
         const marker = i === selectedIndex ? ">" : " ";
         const check = i === selectedIndex ? "[*]" : "[ ]";
         display += `${marker}${check} ${allOptions[i].label}\n`;
       }
-      display += "\n↑↓ navigate, Enter confirm\n";
-      clearLines(allOptions.length + 4);
+      display += "\nUse arrow keys to select, Enter to confirm\n";
+
+      clearScreen();
       process.stdout.write(display);
     };
 
+    clearScreen();
     render();
 
     const keyHandler = (_str: string, key: any): void => {
