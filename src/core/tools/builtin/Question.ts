@@ -27,7 +27,7 @@ export const QuestionTool: Tool = {
   execute: async (params: Record<string, unknown>): Promise<ToolResult> => {
     try {
       const question = (params.question as string) || "";
-      const options = (params.options as Array<{ label: string; value: string }>) || [];
+      let options = (params.options as Array<{ label: string; value: string }>) || [];
 
       if (!question) {
         return { success: false, content: "", error: "question is required" };
@@ -42,9 +42,16 @@ export const QuestionTool: Tool = {
         };
       }
 
+      if (typeof options[0] === "string") {
+        options = (options as unknown as string[]).map((opt) => ({
+          label: opt,
+          value: opt,
+        }));
+      }
+
       const questionOptions: QuestionOption[] = options.map((opt) => ({
-        label: opt.label,
-        value: opt.value,
+        label: opt.label || opt.value || "",
+        value: opt.value || opt.label || "",
       }));
 
       const result = await askQuestion(question, questionOptions);
