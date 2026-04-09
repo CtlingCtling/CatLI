@@ -318,6 +318,13 @@ async function handleUserInput(input: string): Promise<void> {
         const updatedMessages = currentSession?.messages || [];
         result = await apiClient.generateWithTools(updatedMessages, tools);
 
+        if (result.reasoningContent) {
+          output("[thinking process]");
+          output(result.reasoningContent);
+          output("[eot]");
+          output("");
+        }
+
         if (DEBUG) {
           output("[DEBUG] Next generateWithTools result:");
           output(JSON.stringify(result, null, 2));
