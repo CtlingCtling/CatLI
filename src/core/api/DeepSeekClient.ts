@@ -146,11 +146,11 @@ export class DeepSeekClient {
 
       if (chunk.toolCalls) {
         for (const tc of chunk.toolCalls) {
-          if (tc.id && tc.name) {
+          if (tc.id) {
             const existing = toolCallBuffers.get(tc.id);
             if (existing) {
               existing.arguments += tc.arguments;
-            } else {
+            } else if (tc.name) {
               toolCallBuffers.set(tc.id, { name: tc.name, arguments: tc.arguments });
             }
           }
