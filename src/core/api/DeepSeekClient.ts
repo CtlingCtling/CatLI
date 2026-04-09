@@ -6,6 +6,7 @@ import { StreamProcessor } from "./StreamProcessor.js";
 interface DeepSeekMessageResponse {
   role: string;
   content: string;
+  reasoning_content?: string;
   tool_calls?: Array<{
     id: string;
     function: {
@@ -100,8 +101,22 @@ export class DeepSeekClient {
     }
   }
 
+  async *generateWithToolsStream(
+    _messages: Message[],
+    _tools: Tool[],
+    _onThinking?: (content: string) => void,
+    _onChunk?: (content: string) => void
+  ): AsyncGenerator<{
+    content: string;
+    reasoningContent: string;
+    toolCalls: Array<{ id: string; name: string; arguments: Record<string, unknown> }>;
+  }> {
+    throw new Error("Streaming with tools is not yet implemented. Use generateWithTools for non-streaming.");
+  }
+
   async generateWithTools(messages: Message[], tools: Tool[]): Promise<{
     content: string;
+    reasoningContent?: string;
     toolCalls: Array<{ id: string; name: string; arguments: Record<string, unknown> }>;
   }> {
     const request = this.buildRequest(messages, false, tools);
@@ -131,30 +146,38 @@ export class DeepSeekClient {
 
     return {
       content: message?.content || "",
+      reasoningContent: message?.reasoning_content || undefined,
       toolCalls,
     };
   }
 
   private buildRequest(messages: Message[], stream = false, tools?: Tool[]): DeepSeekRequest {
     const requestMessages: Array<Record<string, unknown>> = messages.map((m) => {
-      const msg: Record<string, unknown> = {
+      if (m.role === "assistant" && m.toolCalls && m.toolCalls.length > 0) {
+        return {
+          role: m.role,
+          content: null,
+          tool_calls: m.toolCalls.map((tc) => ({
+            id: tc.id,
+            type: "function",
+            function: {
+              name: tc.name,
+              arguments: typeof tc.arguments === "string" ? tc.arguments : JSON.stringify(tc.arguments),
+            },
+          })),
+        };
+      }
+      if (m.role === "tool" && m.toolCallId) {
+        return {
+          role: m.role,
+          content: m.content || null,
+          tool_call_id: m.toolCallId,
+        };
+      }
+      return {
         role: m.role,
         content: m.content,
       };
-      if (m.role === "tool" && m.toolCallId) {
-        msg.tool_call_id = m.toolCallId;
-      }
-      if (m.role === "assistant" && m.toolCalls && m.toolCalls.length > 0) {
-        msg.tool_calls = m.toolCalls.map((tc) => ({
-          id: tc.id,
-          type: "function",
-          function: {
-            name: tc.name,
-            arguments: tc.arguments,
-          },
-        }));
-      }
-      return msg;
     });
 
     const request: DeepSeekRequest = {
