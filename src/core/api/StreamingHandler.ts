@@ -16,25 +16,8 @@ export async function runStreamingMode(
   let thinkingBuffer = "";
   let contentBuffer = "";
   let thinkingDisplayed = false;
+  let thinkingEnded = false;
   let pendingToolCalls: Array<{ id: string; name: string; arguments: Record<string, unknown> }> = [];
-
-  const flushThinking = () => {
-    if (thinkingBuffer) {
-      if (!thinkingDisplayed) {
-        output("[thinking process]");
-        thinkingDisplayed = true;
-      }
-      output(thinkingBuffer);
-      thinkingBuffer = "";
-    }
-  };
-
-  const flushContent = () => {
-    if (contentBuffer) {
-      process.stdout.write(contentBuffer);
-      contentBuffer = "";
-    }
-  };
 
   while (!isComplete) {
     let hasToolCalls = false;
@@ -42,16 +25,21 @@ export async function runStreamingMode(
     for await (const chunk of apiClient.generateWithToolsStream(currentMessages, tools)) {
       if (chunk.reasoningContent) {
         thinkingBuffer += chunk.reasoningContent;
-        if (thinkingBuffer.length > 50 || chunk.isComplete) {
-          flushThinking();
-        }
       }
 
       if (chunk.content) {
         contentBuffer += chunk.content;
-        if (chunk.content.includes("\n") || chunk.isComplete) {
-          flushContent();
+        if (!thinkingEnded && thinkingBuffer) {
+          thinkingEnded = true;
+          if (!thinkingDisplayed) {
+            output("[thinking process]");
+            thinkingDisplayed = true;
+          }
+          output(thinkingBuffer);
+          output("[eot]");
         }
+        process.stdout.write(contentBuffer);
+        contentBuffer = "";
       }
 
       if (chunk.toolCalls.length > 0) {
@@ -59,14 +47,27 @@ export async function runStreamingMode(
       }
 
       if (chunk.isComplete) {
-        flushThinking();
-        flushContent();
-        output("[eot]");
+        if (!thinkingEnded && thinkingBuffer) {
+          thinkingEnded = true;
+          if (!thinkingDisplayed) {
+            output("[thinking process]");
+            thinkingDisplayed = true;
+          }
+          output(thinkingBuffer);
+          output("[eot]");
+        }
+
+        if (contentBuffer) {
+          process.stdout.write(contentBuffer);
+          contentBuffer = "";
+        }
+
         output("");
 
         if (pendingToolCalls.length > 0) {
           hasToolCalls = true;
           thinkingDisplayed = false;
+          thinkingEnded = false;
 
           const toolCallRequests = pendingToolCalls.map((tc) => ({
             id: tc.id,
@@ -116,7 +117,6 @@ export async function runStreamingMode(
           currentMessages = currentSession?.messages || [];
         } else {
           isComplete = true;
-          output("");
         }
       }
     }
