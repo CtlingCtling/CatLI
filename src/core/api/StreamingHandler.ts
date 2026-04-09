@@ -13,35 +13,34 @@ export async function runStreamingMode(
 ): Promise<void> {
   let currentMessages = [...messages];
   let isComplete = false;
+  let thinkingDisplayed = false;
+  let pendingToolCalls: Array<{ id: string; name: string; arguments: Record<string, unknown> }> = [];
 
   while (!isComplete) {
     let hasToolCalls = false;
 
     for await (const chunk of apiClient.generateWithToolsStream(currentMessages, tools)) {
       if (chunk.reasoningContent) {
-        output("[thinking process]");
+        if (!thinkingDisplayed) {
+          output("[thinking process]");
+          thinkingDisplayed = true;
+        }
         output(chunk.reasoningContent);
+      }
+
+      if (chunk.toolCalls.length > 0) {
+        pendingToolCalls = chunk.toolCalls;
       }
 
       if (chunk.isComplete) {
         output("[eot]");
         output("");
 
-        if (chunk.toolCalls.length > 0) {
+        if (pendingToolCalls.length > 0) {
           hasToolCalls = true;
+          thinkingDisplayed = false;
 
-          const assistantWithTools = new MessageBuilder()
-            .setRole(MessageRole.Assistant)
-            .setContent(chunk.content)
-            .setToolCalls(chunk.toolCalls.map((tc) => ({
-              id: tc.id,
-              name: tc.name,
-              arguments: JSON.stringify(tc.arguments),
-            })))
-            .build();
-          sessionManager.addMessage(assistantWithTools);
-
-          const toolCallRequests = chunk.toolCalls.map((tc) => ({
+          const toolCallRequests = pendingToolCalls.map((tc) => ({
             id: tc.id,
             name: tc.name,
             arguments: tc.arguments,
@@ -72,16 +71,23 @@ export async function runStreamingMode(
             sessionManager.addMessage(toolMessage);
           }
 
+          const assistantWithTools = new MessageBuilder()
+            .setRole(MessageRole.Assistant)
+            .setContent("")
+            .setToolCalls(pendingToolCalls.map((tc) => ({
+              id: tc.id,
+              name: tc.name,
+              arguments: JSON.stringify(tc.arguments),
+            })))
+            .build();
+          sessionManager.addMessage(assistantWithTools);
+
+          pendingToolCalls = [];
+
           const currentSession = sessionManager.getCurrentSession();
           currentMessages = currentSession?.messages || [];
         } else {
           isComplete = true;
-          const assistantMessage = new MessageBuilder()
-            .setRole(MessageRole.Assistant)
-            .setContent(chunk.content)
-            .build();
-          sessionManager.addMessage(assistantMessage);
-          output(chunk.content);
           output("");
         }
       }

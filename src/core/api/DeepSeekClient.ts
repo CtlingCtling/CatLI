@@ -157,7 +157,14 @@ export class DeepSeekClient {
         }
       }
 
-      if (chunk.isFinished) {
+      yield {
+        content: chunk.text,
+        reasoningContent: chunk.reasoningContent || "",
+        toolCalls: [],
+        isComplete: chunk.isFinished,
+      };
+
+      if (chunk.isFinished && toolCallBuffers.size > 0) {
         const completeToolCalls = Array.from(toolCallBuffers.entries()).map(([id, tc]) => ({
           id,
           name: tc.name,
@@ -165,15 +172,13 @@ export class DeepSeekClient {
         }));
 
         yield {
-          content: fullContent,
-          reasoningContent: fullReasoningContent,
+          content: "",
+          reasoningContent: "",
           toolCalls: completeToolCalls,
           isComplete: true,
         };
 
         toolCallBuffers.clear();
-        fullContent = "";
-        fullReasoningContent = "";
       }
     }
   }
