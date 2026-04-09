@@ -69,6 +69,17 @@ export async function runStreamingMode(
           thinkingDisplayed = false;
           thinkingEnded = false;
 
+          const assistantWithTools = new MessageBuilder()
+            .setRole(MessageRole.Assistant)
+            .setContent("")
+            .setToolCalls(pendingToolCalls.map((tc) => ({
+              id: tc.id,
+              name: tc.name,
+              arguments: JSON.stringify(tc.arguments),
+            })))
+            .build();
+          sessionManager.addMessage(assistantWithTools);
+
           const toolCallRequests = pendingToolCalls.map((tc) => ({
             id: tc.id,
             name: tc.name,
@@ -99,17 +110,6 @@ export async function runStreamingMode(
 
             sessionManager.addMessage(toolMessage);
           }
-
-          const assistantWithTools = new MessageBuilder()
-            .setRole(MessageRole.Assistant)
-            .setContent("")
-            .setToolCalls(pendingToolCalls.map((tc) => ({
-              id: tc.id,
-              name: tc.name,
-              arguments: JSON.stringify(tc.arguments),
-            })))
-            .build();
-          sessionManager.addMessage(assistantWithTools);
 
           pendingToolCalls = [];
 
