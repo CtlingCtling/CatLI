@@ -8,6 +8,7 @@ export interface Config {
   compressTokenThreshold: number;
   compressPreserveRecent: number;
   compressMaxChunkTokens: number;
+  streaming: boolean;
 }
 
 export interface ConfigSource {

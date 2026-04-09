@@ -62,10 +62,12 @@ export class StreamProcessor {
 
       const delta = choice.delta;
       const content = delta?.content || "";
+      const reasoningContent = delta?.reasoning_content || "";
       const isFinished = choice.finish_reason !== null && choice.finish_reason !== undefined;
 
       return {
         text: content,
+        reasoningContent,
         isFinished,
         toolCalls: this.extractToolCalls(choice),
       };

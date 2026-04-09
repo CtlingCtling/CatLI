@@ -102,16 +102,80 @@ export class DeepSeekClient {
   }
 
   async *generateWithToolsStream(
-    _messages: Message[],
-    _tools: Tool[],
-    _onThinking?: (content: string) => void,
-    _onChunk?: (content: string) => void
+    messages: Message[],
+    tools: Tool[],
+    onThinking?: (content: string) => void
   ): AsyncGenerator<{
     content: string;
     reasoningContent: string;
     toolCalls: Array<{ id: string; name: string; arguments: Record<string, unknown> }>;
+    isComplete: boolean;
   }> {
-    throw new Error("Streaming with tools is not yet implemented. Use generateWithTools for non-streaming.");
+    const request = this.buildRequest(messages, true, tools);
+    const processor = new StreamProcessor();
+
+    const response = await fetch(`${this.baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.apiKey}`,
+      },
+      body: JSON.stringify(request),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`DeepSeek API error: ${response.status} - ${error}`);
+    }
+
+    if (!response.body) {
+      throw new Error("Response body is null");
+    }
+
+    const toolCallBuffers: Map<string, { name: string; arguments: string }> = new Map();
+    let fullContent = "";
+    let fullReasoningContent = "";
+
+    for await (const chunk of processor.process(response.body)) {
+      fullContent += chunk.text;
+      fullReasoningContent += chunk.reasoningContent || "";
+
+      if (chunk.reasoningContent && onThinking) {
+        onThinking(chunk.reasoningContent);
+      }
+
+      if (chunk.toolCalls) {
+        for (const tc of chunk.toolCalls) {
+          if (tc.id && tc.name) {
+            const existing = toolCallBuffers.get(tc.id);
+            if (existing) {
+              existing.arguments += tc.arguments;
+            } else {
+              toolCallBuffers.set(tc.id, { name: tc.name, arguments: tc.arguments });
+            }
+          }
+        }
+      }
+
+      if (chunk.isFinished) {
+        const completeToolCalls = Array.from(toolCallBuffers.entries()).map(([id, tc]) => ({
+          id,
+          name: tc.name,
+          arguments: JSON.parse(tc.arguments || "{}"),
+        }));
+
+        yield {
+          content: fullContent,
+          reasoningContent: fullReasoningContent,
+          toolCalls: completeToolCalls,
+          isComplete: true,
+        };
+
+        toolCallBuffers.clear();
+        fullContent = "";
+        fullReasoningContent = "";
+      }
+    }
   }
 
   async generateWithTools(messages: Message[], tools: Tool[]): Promise<{

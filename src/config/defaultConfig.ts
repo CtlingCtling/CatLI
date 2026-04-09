@@ -10,4 +10,5 @@ export const defaultConfig: Config = {
   compressTokenThreshold: 6000,
   compressPreserveRecent: 2000,
   compressMaxChunkTokens: 1500,
+  streaming: false,
 };

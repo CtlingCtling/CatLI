@@ -33,6 +33,7 @@ export interface DeepSeekStreamResponse {
     delta: {
       content?: string;
       role?: string;
+      reasoning_content?: string;
     };
     finish_reason?: string;
   }>;
@@ -56,10 +57,22 @@ export interface ToolDefinition {
 
 export interface StreamChunk {
   text: string;
+  reasoningContent?: string;
   isFinished: boolean;
   toolCalls?: Array<{
     id: string;
     name: string;
     arguments: string;
   }>;
+}
+
+export interface StreamToolCallResult {
+  content: string;
+  reasoningContent: string;
+  toolCalls: Array<{
+    id: string;
+    name: string;
+    arguments: Record<string, unknown>;
+  }>;
+  isComplete: boolean;
 }
