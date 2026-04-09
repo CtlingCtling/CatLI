@@ -240,6 +240,13 @@ async function handleUserInput(input: string): Promise<void> {
         output(JSON.stringify(messages, null, 2));
       }
 
+      if (result.reasoningContent) {
+        output("[thinking process]");
+        output(result.reasoningContent);
+        output("[eot]");
+        output("");
+      }
+
       while (result.toolCalls.length > 0) {
         const assistantWithTools = new MessageBuilder()
           .setRole(MessageRole.Assistant)
@@ -251,8 +258,6 @@ async function handleUserInput(input: string): Promise<void> {
           })))
           .build();
         sessionManager.addMessage(assistantWithTools);
-
-        output("[thinking] Processing tool calls...");
 
         const toolCallRequests = result.toolCalls.map((tc) => ({
           id: tc.id,
