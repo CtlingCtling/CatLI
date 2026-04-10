@@ -6,8 +6,12 @@ import { createToolRegistry, ToolExecutor } from "./core/tools/index.js";
 import { createCommandRegistry, SlashHandler } from "./core/commands/index.js";
 import { MessageBuilder, MessageRole } from "./types/message.js";
 import { output, error } from "./utils/logger.js";
+import { initDebug, debug } from "./utils/debug.js";
 
 const DEBUG = process.argv.includes("--debug") || process.argv.includes("-d");
+if (DEBUG) {
+  initDebug({ level: "debug", output: "stderr" });
+}
 
 const CONFIG_PATH = process.env.CATLI_CONFIG_PATH;
 const configManager = new ConfigManager(CONFIG_PATH);
@@ -242,8 +246,7 @@ async function handleUserInput(input: string): Promise<void> {
         let result = await apiClient.generateWithTools(messages, tools);
 
         if (DEBUG) {
-          output("[DEBUG] Initial generateWithTools result:");
-          output(JSON.stringify(result, null, 2));
+          debug("generateWithTools result", result);
         }
 
         if (result.reasoningContent) {
