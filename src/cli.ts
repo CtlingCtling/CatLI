@@ -237,7 +237,6 @@ async function handleUserInput(input: string): Promise<void> {
 
     if (tools.length > 0) {
       const cfg = configManager.getConfig();
-      if (DEBUG) output(`[DEBUG] streaming=${cfg.streaming}`);
       if (cfg.streaming) {
         await runStreamingMode(messages, tools, sessionManager, apiClient, toolExecutor);
       } else {
