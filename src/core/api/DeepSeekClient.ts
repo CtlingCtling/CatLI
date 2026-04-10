@@ -154,63 +154,70 @@ export class DeepSeekClient {
     let fullContent = "";
     let fullReasoningContent = "";
 
-    for await (const chunk of processor.process(response.body)) {
-      fullContent += chunk.text;
-      fullReasoningContent += chunk.reasoningContent || "";
+    try {
+      for await (const chunk of processor.process(response.body)) {
+        fullContent += chunk.text;
+        fullReasoningContent += chunk.reasoningContent || "";
 
-      if (chunk.reasoningContent && onThinking) {
-        onThinking(chunk.reasoningContent);
-      }
+        if (chunk.reasoningContent && onThinking) {
+          onThinking(chunk.reasoningContent);
+        }
 
-      if (chunk.toolCalls) {
-        for (const tc of chunk.toolCalls) {
-          if (tc.arguments !== undefined) {
-            const lastBuffer = Array.from(toolCallBuffers.values()).slice(-1)[0];
-            if (lastBuffer && !tc.id) {
-              lastBuffer.arguments += tc.arguments;
-            } else if (tc.id) {
-              const existing = toolCallBuffers.get(tc.id);
-              if (existing) {
-                existing.arguments += tc.arguments;
-              } else if (tc.name) {
-                toolCallBuffers.set(tc.id, { name: tc.name, arguments: tc.arguments });
+        if (chunk.toolCalls) {
+          for (const tc of chunk.toolCalls) {
+            if (tc.arguments !== undefined) {
+              const lastBuffer = Array.from(toolCallBuffers.values()).slice(-1)[0];
+              if (lastBuffer && !tc.id) {
+                lastBuffer.arguments += tc.arguments;
+              } else if (tc.id) {
+                const existing = toolCallBuffers.get(tc.id);
+                if (existing) {
+                  existing.arguments += tc.arguments;
+                } else if (tc.name) {
+                  toolCallBuffers.set(tc.id, { name: tc.name, arguments: tc.arguments });
+                }
               }
             }
           }
         }
-      }
 
-      yield {
-        content: chunk.text,
-        reasoningContent: chunk.reasoningContent || "",
-        toolCalls: [],
-        isComplete: false,
-      };
-
-      if (chunk.isFinished && toolCallBuffers.size > 0) {
-        const completeToolCalls = Array.from(toolCallBuffers.entries()).map(([id, tc]) => ({
-          id,
-          name: tc.name,
-          arguments: JSON.parse(tc.arguments || "{}"),
-        }));
         yield {
-          content: "",
-          reasoningContent: "",
-          toolCalls: completeToolCalls,
-          isComplete: true,
-        };
-
-        toolCallBuffers.clear();
-      } else if (chunk.isFinished) {
-        yield {
-          content: "",
-          reasoningContent: "",
+          content: chunk.text,
+          reasoningContent: chunk.reasoningContent || "",
           toolCalls: [],
-          isComplete: true,
+          isComplete: false,
         };
+
+        if (chunk.isFinished && toolCallBuffers.size > 0) {
+          const completeToolCalls = Array.from(toolCallBuffers.entries()).map(([id, tc]) => ({
+            id,
+            name: tc.name,
+            arguments: JSON.parse(tc.arguments || "{}"),
+          }));
+          yield {
+            content: "",
+            reasoningContent: "",
+            toolCalls: completeToolCalls,
+            isComplete: true,
+          };
+
+          toolCallBuffers.clear();
+        } else if (chunk.isFinished) {
+          yield {
+            content: "",
+            reasoningContent: "",
+            toolCalls: [],
+            isComplete: true,
+          };
+        }
       }
+    } catch (error: any) {
+      if (error?.name === "AbortError") {
+        return;
+      }
+      throw error;
     }
-  }
+}
 
   async generateWithTools(messages: Message[], tools: Tool[]): Promise<{
     content: string;
