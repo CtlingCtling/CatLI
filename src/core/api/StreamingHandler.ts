@@ -110,7 +110,7 @@ export async function* runStreamingMode(
                 for (const line of lines) {
                   output(`#️⃣> ${line}`);
                 }
-                output("[✅called]");
+                output("\n[✅called]\n");
               } else {
                 output(`[🛠️${toolName}]`);
                 if (toolContent) {
@@ -118,9 +118,9 @@ export async function* runStreamingMode(
                 } else if (tcResult.result.error) {
                   output(`[❌error]: ${tcResult.result.error}`);
                 } else {
-                  output("[✅done]");
+                  output("\n[✅done]\n");
                 }
-                output("[✅called]");
+                output("\n[✅called]\n");
               }
 
               const toolMessage = new MessageBuilder()
@@ -172,7 +172,7 @@ export async function* runStreamingMode(
 
                 const toolContent = `User selected: ${answer}`;
                 output(toolContent);
-                output("[✅called]");
+                output("\n[✅called]\n");
 
                 const toolMessage = new MessageBuilder()
                   .setRole(MessageRole.Tool)

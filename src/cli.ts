@@ -322,7 +322,7 @@ async function handleUserInput(input: string): Promise<void> {
             content: "[中断通知] 上一条请求已被用户中断，请勿继续执行任何工具调用。",
             timestamp: Date.now(),
           } as any);
-          output("[ℹ️] 对话已中断，上下文已记录。");
+          output("\n[ℹ️] 对话已中断，上下文已记录。\n");
         }
       } else {
         let result = await apiClient.generateWithTools(messages, tools);
@@ -367,14 +367,14 @@ async function handleUserInput(input: string): Promise<void> {
               for (const line of lines) {
                 output(`#️⃣> ${line}`);
               }
-              output("[✅called]");
+              output("\n[✅called]\n");
             } else if (toolName === "run_bash" && toolContent) {
               const lines = toolContent.split("\n");
               output(`[🛠️run_bash]`);
               for (const line of lines) {
                 output(`#️⃣> ${line}`);
               }
-              output("[✅called]");
+              output("\n[✅called]\n");
             } else {
               output(`[🛠️${toolName}]`);
               if (toolContent) {
@@ -382,9 +382,9 @@ async function handleUserInput(input: string): Promise<void> {
               } else if (tcResult.result.error) {
                 output(`[❌error]: ${tcResult.result.error}`);
               } else {
-                output("[✅done]");
+                output("\n[✅done]\n");
               }
-              output("[✅called]");
+              output("\n[✅called]\n");
             }
 
             const toolMessage = new MessageBuilder()
@@ -401,9 +401,9 @@ async function handleUserInput(input: string): Promise<void> {
           result = await apiClient.generateWithTools(updatedMessages, tools);
 
           if (result.reasoningContent) {
-            output("\n[thinking process]");
+            output("\n[thinking process]\n");
             output(result.reasoningContent);
-            output("[eot]\n");
+            output("\n[eot]\n");
           }
         }
 
