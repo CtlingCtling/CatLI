@@ -63,6 +63,10 @@ export class DeepSeekClient {
     return this.aborted;
   }
 
+  resetAborted(): void {
+    this.aborted = false;
+  }
+
   async generateContent(messages: Message[]): Promise<string> {
     const request = this.buildRequest(messages);
 

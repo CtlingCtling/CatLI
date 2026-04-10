@@ -247,6 +247,7 @@ async function handleStreamingWithQuestions(
         toolExecutor,
         onQuestionAnswer
       )[Symbol.asyncIterator]();
+      apiClient.resetAborted();
     }
 
     if (apiClient.isAborted()) {
