@@ -49,7 +49,7 @@ export class DeepSeekClient {
   }
 
   abort(): void {
-    if (this.abortController) {
+    if (this.abortController && !this.abortController.signal.aborted) {
       this.abortController.abort();
     }
   }
