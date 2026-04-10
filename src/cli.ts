@@ -7,6 +7,7 @@ import { createCommandRegistry, SlashHandler } from "./core/commands/index.js";
 import { MessageBuilder, MessageRole } from "./types/message.js";
 import { output, error } from "./utils/logger.js";
 import { initDebug, debug } from "./utils/debug.js";
+import { askQuestionInteractive } from "./utils/questionHandler.js";
 
 const DEBUG = process.argv.includes("--debug") || process.argv.includes("-d");
 if (DEBUG) {
@@ -241,7 +242,11 @@ async function handleUserInput(input: string): Promise<void> {
     if (tools.length > 0) {
       const cfg = configManager.getConfig();
       if (cfg.streaming) {
-        await runStreamingMode(messages, tools, sessionManager, apiClient, toolExecutor);
+        await runStreamingMode(messages, tools, sessionManager, apiClient, toolExecutor, {
+          onInteractiveTool: async (request) => {
+            return await askQuestionInteractive(request.question, request.options);
+          },
+        });
       } else {
         let result = await apiClient.generateWithTools(messages, tools);
 

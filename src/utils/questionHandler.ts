@@ -3,6 +3,8 @@ export interface QuestionOption {
   value: string;
 }
 
+import * as readline from "readline";
+
 export interface QuestionResult {
   selected: string;
   isCustom: boolean;
@@ -108,4 +110,39 @@ function promptCustomInput(resolve: (result: QuestionResult) => void): void {
   };
 
   process.stdin.on("data", dataHandler);
+}
+
+export async function askQuestionInteractive(
+  question: string,
+  options?: Array<{ label: string; value: string }>
+): Promise<{ selected: string }> {
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+
+    if (options && options.length > 0) {
+      let display = `${question}\n`;
+      for (let i = 0; i < options.length; i++) {
+        display += `  ${i + 1}. ${options[i].label}\n`;
+      }
+      display += "\nEnter your choice (number): ";
+
+      rl.question(display, (answer) => {
+        const num = parseInt(answer.trim(), 10);
+        if (!isNaN(num) && num >= 1 && num <= options.length) {
+          resolve({ selected: options[num - 1].value });
+        } else {
+          resolve({ selected: answer.trim() });
+        }
+        rl.close();
+      });
+    } else {
+      rl.question(`${question}\n> `, (answer) => {
+        resolve({ selected: answer.trim() });
+        rl.close();
+      });
+    }
+  });
 }

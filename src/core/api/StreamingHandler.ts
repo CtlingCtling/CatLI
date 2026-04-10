@@ -4,12 +4,24 @@ import { output } from "../../utils/logger.js";
 import { SessionManager } from "../session/SessionManager.js";
 import { ToolExecutor } from "../tools/index.js";
 
+export interface InteractiveToolRequest {
+  toolId: string;
+  toolName: string;
+  question: string;
+  options?: Array<{ label: string; value: string }>;
+}
+
+export interface StreamingHandlerCallbacks {
+  onInteractiveTool?: (request: InteractiveToolRequest) => Promise<{ selected: string }>;
+}
+
 export async function runStreamingMode(
   messages: Awaited<ReturnType<SessionManager["getMessages"]>>,
   tools: any[],
   sessionManager: SessionManager,
   apiClient: DeepSeekClient,
-  toolExecutor: ToolExecutor
+  toolExecutor: ToolExecutor,
+  callbacks?: StreamingHandlerCallbacks
 ): Promise<void> {
   let currentMessages = [...messages];
   let isComplete = false;
@@ -42,7 +54,7 @@ export async function runStreamingMode(
       if (chunk.isComplete) {
         if (thinkingDisplayed && !thinkingEnded) {
           thinkingEnded = true;
-          output("[💡eot]\n");
+          output("\n[💡eot]\n");
         }
 
         if (contentBuffer) {
@@ -76,11 +88,36 @@ export async function runStreamingMode(
 
           const results = await toolExecutor.executeAll(toolCallRequests);
 
-          for (const tcResult of results) {
-            const toolName = toolCallRequests.find((t) => t.id === tcResult.id)?.name || "";
-            const toolContent = tcResult.result.content || "";
+          for (let i = 0; i < results.length; i++) {
+            const tcResult = results[i];
+            const tcRequest = toolCallRequests[i];
+            const toolName = tcRequest.name;
+            let toolContent = tcResult.result.content || "";
 
-            if (toolName === "run_bash" && toolContent) {
+            if (toolName === "question" && callbacks?.onInteractiveTool) {
+              const args = tcRequest.arguments as { question?: string; options?: Array<{ label: string; value: string }> };
+              const question = args.question || "";
+              const options = args.options || [];
+
+              output(`[🛠️${toolName}]`);
+              output(question);
+              if (options.length > 0) {
+                for (const opt of options) {
+                  output(`  ${opt.label}`);
+                }
+              }
+
+              const answer = await callbacks.onInteractiveTool({
+                toolId: tcResult.id,
+                toolName,
+                question,
+                options,
+              });
+
+              toolContent = `User selected: ${answer.selected}`;
+              output(toolContent);
+              output("[✅called]");
+            } else if (toolName === "run_bash" && toolContent) {
               const lines = toolContent.split("\n");
               output(`[🛠️${toolName}]`);
               for (const line of lines) {
@@ -101,7 +138,7 @@ export async function runStreamingMode(
 
             const toolMessage = new MessageBuilder()
               .setRole(MessageRole.Tool)
-              .setContent(tcResult.result.content || tcResult.result.error || "")
+              .setContent(toolContent)
               .setToolCall(tcResult.id, toolName)
               .build();
 
