@@ -1,12 +1,17 @@
 import { readFileSync } from "fs";
 import { join } from "path";
 
+export type Category = "knowledge" | "insight" | "personality";
+
 export interface YamlMetadata {
   title?: string;
   date?: string;
   source?: string;
   summary?: string;
   tags?: string[];
+  category?: Category;
+  subject?: string;
+  judge?: string;
 }
 
 export class YamlGenerator {
@@ -16,11 +21,17 @@ export class YamlGenerator {
     const source = metadata.source || "";
     const summary = metadata.summary || "";
     const tags = metadata.tags?.join(", ") || "";
+    const category = metadata.category || "";
+    const subject = metadata.subject || "";
+    const judge = metadata.judge || "";
 
     const yaml = [
       "---",
       `title: "${title}"`,
       `date: "${date}"`,
+      `category: ${category}`,
+      `subject: "${subject}"`,
+      `judge: "${judge}"`,
       source ? `source: "${source}"` : "# source: \"\"",
       `summary: "${summary}"`,
       `tags: [${tags}]`,
@@ -45,6 +56,15 @@ export class YamlGenerator {
 
     const dateMatch = yamlBlock.match(/date:\s*"?([^"\n]+)"?/);
     if (dateMatch) metadata.date = dateMatch[1].trim();
+
+    const categoryMatch = yamlBlock.match(/category:\s*(\w+)/);
+    if (categoryMatch) metadata.category = categoryMatch[1] as Category;
+
+    const subjectMatch = yamlBlock.match(/subject:\s*"?([^"\n]+)"?/);
+    if (subjectMatch) metadata.subject = subjectMatch[1].trim();
+
+    const judgeMatch = yamlBlock.match(/judge:\s*"?([^"\n]+)"?/);
+    if (judgeMatch) metadata.judge = judgeMatch[1].trim();
 
     const sourceMatch = yamlBlock.match(/source:\s*"?([^"\n]+)"?/);
     if (sourceMatch) metadata.source = sourceMatch[1].trim();
@@ -73,6 +93,10 @@ export class YamlGenerator {
 
   static addYamlToContent(content: string, metadata: YamlMetadata): string {
     const yaml = this.generate(metadata);
+    const existingYamlMatch = content.match(/^---\n[\s\S]*?\n---\n?/);
+    if (existingYamlMatch) {
+      return content.replace(existingYamlMatch[0], yaml + "\n");
+    }
     return yaml + "\n" + content;
   }
 
