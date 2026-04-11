@@ -6,7 +6,7 @@ export function createExitCommand(): Command {
     name: "exit",
     description: "Exit the CLI",
     execute: async (): Promise<boolean> => {
-      output("Goodbye!");
+      output("👋Goodbye!");
       setTimeout(() => process.exit(0), 100);
       return true;
     },

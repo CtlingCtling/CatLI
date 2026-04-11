@@ -475,7 +475,7 @@ async function main(): Promise<void> {
 
     if (trimmed === "/config") {
       const cfg = configManager.getConfig();
-      output("Current configuration🙀:");
+      output("\nCurrent configuration🙀:");
       output(`  🐱model: ${cfg.model}`);
       output(`  📊maxTokens: ${cfg.maxTokens}`);
       output(`  🌡️temperature: ${cfg.temperature}`);
@@ -484,7 +484,7 @@ async function main(): Promise<void> {
       output(`  🔄compressMaxChunkTokens: ${cfg.compressMaxChunkTokens}`);
       output(`  streaming: ${cfg.streaming}`);
       output("");
-      output("Enter key=value to set, key to view, e to exit.");
+      output("Enter key=value to set, key to view, e to exit.\n");
       enterMode(rl, "config");
       return;
     }
