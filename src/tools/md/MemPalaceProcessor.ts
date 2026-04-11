@@ -56,11 +56,12 @@ export class MemPalaceProcessor {
         date: new Date().toISOString().split("T")[0],
         category,
         subject,
-        judge,
         tags: [category],
       };
 
-      const processedContent = YamlGenerator.addYamlToContent(content, metadata);
+      const yamlHeader = YamlGenerator.generate(metadata);
+      const judgeSection = `## JUDGE\n${judge}\n---`;
+      const processedContent = yamlHeader + "\n" + judgeSection + "\n\n" + content;
 
       const targetDir = join(memPalaceDir, category);
       if (!existsSync(targetDir)) {

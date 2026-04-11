@@ -48,7 +48,7 @@ Judge 不是总结，是**元认知评估**：
 
 ## YAML 格式
 
-所有归档文件必须包含 YAML 头：
+所有归档文件必须包含 YAML 头和 JUDGE section：
 
 ```yaml
 ---
@@ -56,10 +56,21 @@ title: "文件标题"
 date: "YYYY-MM-DD"
 category: knowledge|insight|personality
 subject: "科目/事物/主题"
-judge: "一句客观评价"
 tags: [标签1, 标签2]
 ---
+
+## JUDGE
+<一句客观评价，评估理解深度/客观性/自我认知>
+
+---
+
+<原文内容>
 ```
+
+**结构说明**：
+- YAML 头：包含 metadata
+- JUDGE section：元认知评估，紧跟 YAML 头
+- 原文：原始内容不变
 
 ## 处理流程
 

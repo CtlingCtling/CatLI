@@ -11,7 +11,6 @@ export interface YamlMetadata {
   tags?: string[];
   category?: Category;
   subject?: string;
-  judge?: string;
 }
 
 export class YamlGenerator {
@@ -23,7 +22,6 @@ export class YamlGenerator {
     const tags = metadata.tags?.join(", ") || "";
     const category = metadata.category || "";
     const subject = metadata.subject || "";
-    const judge = metadata.judge || "";
 
     const yaml = [
       "---",
@@ -31,7 +29,6 @@ export class YamlGenerator {
       `date: "${date}"`,
       `category: ${category}`,
       `subject: "${subject}"`,
-      `judge: "${judge}"`,
       source ? `source: "${source}"` : "# source: \"\"",
       `summary: "${summary}"`,
       `tags: [${tags}]`,
@@ -62,9 +59,6 @@ export class YamlGenerator {
 
     const subjectMatch = yamlBlock.match(/subject:\s*"?([^"\n]+)"?/);
     if (subjectMatch) metadata.subject = subjectMatch[1].trim();
-
-    const judgeMatch = yamlBlock.match(/judge:\s*"?([^"\n]+)"?/);
-    if (judgeMatch) metadata.judge = judgeMatch[1].trim();
 
     const sourceMatch = yamlBlock.match(/source:\s*"?([^"\n]+)"?/);
     if (sourceMatch) metadata.source = sourceMatch[1].trim();
