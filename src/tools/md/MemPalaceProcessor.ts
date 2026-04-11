@@ -29,18 +29,23 @@ export class MemPalaceProcessor {
     this.ensureDirectories(memPalaceDir);
 
     const files = this.findMarkdownFiles(inputDir, options.recursive || false);
-    output(`Found ${files.length} markdown file(s) in ${inputDir}`);
+    output(`\n[📝processing] Found ${files.length} markdown file(s)\n`);
 
     for (const file of files) {
       const result = await this.processFile(file, memPalaceDir);
       results.push(result);
 
       if (result.error) {
-        output(`[error] ${basename(file)}: ${result.error}`);
+        output(`[❌error] ${result.filename}: ${result.error}`);
       } else {
-        output(`Processed: ${result.filename} -> ${result.category}/${result.subject}`);
+        output(`  → ${result.filename}`);
+        output(`    └─ ${result.category}/${result.subject}`);
       }
     }
+
+    const success = results.filter((r) => !r.error).length;
+    const failed = results.filter((r) => r.error).length;
+    output(`\n[✅done] Processed: ${success} | Failed: ${failed}\n`);
 
     return results;
   }
